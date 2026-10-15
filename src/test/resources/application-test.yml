@@ -1,0 +1,48 @@
+spring:
+  application.name: "authz-test-service"
+
+group:
+  phorus:
+    security:
+      filters:
+        token:
+          enabled: true
+          ignored-paths:
+            - path: /test/token
+            - path: /health
+      jwt:
+        issuer: phorus.group
+        token-format: JWE
+        encryption:
+          encoded-private-key: "MIG/AgEAMBAGByqGSM49AgEGBSuBBAAiBIGnMIGkAgEBBDCpoZWkEK8LcF2uGOI0abCj/ApvnAJeGPf+yMph+wfedOqhHbclczvNRdagjm0I2RmgBwYFK4EEACKhZANiAAReX6HMEPcJ05T5YCQeSPtz5kNPOlR44cBbZMOXrUwJ1JuyfobpbaJJ9fpW9paoWEy4yNIeYH4T/aplbIktIvTGo41ndJskCtSj26lsGi2llVArDQNttHH4jSyueKVyzBA="
+          encoded-public-key: "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEXl+hzBD3CdOU+WAkHkj7c+ZDTzpUeOHAW2TDl61MCdSbsn6G6W2iSfX6VvaWqFhMuMjSHmB+E/2qZWyJLSL0xqONZ3SbJArUo9upbBotpZVQKw0DbbRx+I0srnilcswQ"
+    authz:
+      roles:
+        ADMIN: [ "document:approve", "document:read", "document:publish", "document:create" ]
+        VIEWER: [ "document:read" ]
+        SUPPORT: [ "admin:access" ]
+        AUDITOR: [ "report:read" ]
+        EXPORTER: [ "report:export" ]
+        OWNER: [ "*" ]
+      ignored-paths:
+        - path: /test/token
+        - path: /health
+      gates:
+        - path: /documents/{id}/approve
+          method: POST
+          requires-any: [ "document:approve" ]
+        - path: /documents/{id}/publish
+          method: POST
+          requires-any: [ "document:publish" ]
+        - path: /admin/**
+          requires-any: [ "admin:access" ]
+        - path: /internal/**
+          requires-scope: [ "reports.read" ]
+        - path: /documents/{id}/owner
+          method: GET
+          requires-any: [ "document:read" ]
+        - path: /support/**
+          requires-any: [ "admin:access", "document:approve" ]
+        - path: /exports/**
+          method: POST
+          requires-all: [ "report:read", "report:export" ]
