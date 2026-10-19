@@ -81,6 +81,16 @@ configurations.configureEach {
         ) {
             useVersion("1.16.6")
         }
+
+        // CVE-2026-84939 (CRITICAL)
+        if (requested.group == "org.freemarker" && requested.name == "freemarker") {
+            useVersion("2.3.35")
+        }
+
+        // CVE-2026-75140 (HIGH), CVE-2026-71497 (MEDIUM)
+        if (requested.group == "org.jsoup" && requested.name == "jsoup") {
+            useVersion("1.23.2")
+        }
     }
 }
 
