@@ -59,9 +59,9 @@ dependencies {
     testImplementation(kotlin("reflect"))
 }
 
-// Bouncy Castle arrives through the token libraries and micrometer through the metrics the
-// authentication starter records. Jetty, jsoup and freemarker are pinned in sibling builds and
-// reach no configuration here.
+// Bouncy Castle arrives through the token libraries, micrometer through the metrics the
+// authentication starter records, and jsoup and freemarker through Dokka's HTML generator. Jetty
+// is pinned in the sibling build for WireMock and reaches no configuration here.
 configurations.configureEach {
     resolutionStrategy.eachDependency {
         // CVE-2026-8763 (CRITICAL), CVE-2026-3505 (HIGH), CVE-2026-13506 (HIGH),
@@ -83,12 +83,12 @@ configurations.configureEach {
         }
 
         // CVE-2026-84939 (CRITICAL)
-        if (requested.group == "org.freemarker" && requested.name == "freemarker") {
+        if (requested.group == "org.freemarker") {
             useVersion("2.3.35")
         }
 
         // CVE-2026-75140 (HIGH), CVE-2026-71497 (MEDIUM)
-        if (requested.group == "org.jsoup" && requested.name == "jsoup") {
+        if (requested.group == "org.jsoup") {
             useVersion("1.23.2")
         }
     }
