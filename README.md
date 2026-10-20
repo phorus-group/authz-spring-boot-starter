@@ -130,8 +130,9 @@ group:
 
 A role name is a key and the permissions it grants are the list under it. A check compares a
 required permission against that list by name, so the entry `document:approve` grants
-`document:approve`. `*` instead grants every permission, and `document:*` grants every action on
-documents.
+`document:approve`. `*` instead grants every permission, and a `*` in either half stands for every
+value of that half, so `document:*` grants every action on documents and `*:read` grants reading
+every type.
 
 A role name keeps the spelling written here, so `ADMIN` in the configuration matches `ADMIN` in a
 token. Write a name holding a dot in square brackets, `"[service.admin]"`, so YAML reads the dot as
@@ -553,7 +554,7 @@ reaches it:
 |----------|---------|-------------|
 | `group.phorus.authz.enabled` | `true` | Setting it to `false` creates none of the beans below and leaves every request to its handler |
 | `group.phorus.authz.default-policy` | `allow` | What happens to a request outside every gate: `allow` or `deny` |
-| `group.phorus.authz.roles` | empty | The permissions each role grants, keyed by role name. An entry of `*` grants every permission, and one ending in `:*` grants every action on that type |
+| `group.phorus.authz.roles` | empty | The permissions each role grants, keyed by role name. An entry of `*` grants every permission, and a `*` in either half stands for every value of that half, so `document:*` grants every action on documents and `*:read` grants reading every type |
 | `group.phorus.authz.gates` | empty | The routes that require something. See below |
 | `group.phorus.authz.ignored-paths` | empty | Routes that skip authorization entirely |
 

@@ -26,7 +26,7 @@ ext["netty.version"] = "4.2.17.Final"
 
 group = "group.phorus"
 description = "Spring Boot starter that gates routes on roles and token scope, and builds an authz principal from the authenticated request."
-version = "1.0.1"
+version = "1.0.2"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -40,7 +40,7 @@ repositories {
 
 dependencies {
     // Phorus
-    api("group.phorus:authz-core:1.0.3")
+    api("group.phorus:authz-core:1.0.4")
     api("group.phorus:authn-spring-boot-starter:2.0.1")
     api("group.phorus:exception-spring-boot-starter:1.1.2")
 
