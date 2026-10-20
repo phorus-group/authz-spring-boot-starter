@@ -1,5 +1,6 @@
 package group.phorus.authz.filters
 
+import group.phorus.authn.config.Path
 import group.phorus.authn.config.SecurityConfiguration
 import group.phorus.authz.PrincipalResolver
 import group.phorus.authz.config.AuthzConfiguration
@@ -142,6 +143,39 @@ class RouteAuthorizationFilter(
                 "request would carry an identity and every gated route would answer 401. Turn the " +
                 "token filter on, or remove the gates."
         }
+
+        // Under the deny policy a gate or this list decides every route. A path listed here while
+        // the token filter still demands a token is open to everyone holding any valid token, and
+        // closed to the caller holding a credential of its own.
+        if (configuration.defaultPolicy == DefaultPolicy.DENY) {
+            configuration.ignoredPaths.filterNot { tokenFilterSkips(it, securityConfiguration) }.forEach { ignored ->
+                val route = ignored.method?.let { "$it ${ignored.path}" } ?: ignored.path
+                throw IllegalArgumentException(
+                    "group.phorus.authz.ignored-paths names \"$route\" while the token filter still " +
+                        "requires a token for it, and group.phorus.authz.default-policy is deny. The " +
+                        "route would then be open to everyone holding any valid token, and closed to " +
+                        "the caller holding a credential of its own. Add it to " +
+                        "group.phorus.security.filters.token.ignored-paths where a credential of its " +
+                        "own authenticates it, or give it a gate naming a permission its callers hold.",
+                )
+            }
+        }
+    }
+
+    /**
+     * Whether the token filter lets [ignored] through as an anonymous request, which is what makes
+     * skipping authorization for it safe. True when the filter is off, when the path sits in its
+     * own ignored list, and when it runs on a protected list naming other paths.
+     */
+    private fun tokenFilterSkips(ignored: Path, securityConfiguration: SecurityConfiguration): Boolean {
+        val token = securityConfiguration.filters.token
+        if (!token.enabled) return true
+        val method = ignored.method?.let { HttpMethod.valueOf(it) } ?: HttpMethod.GET
+        if (isIgnored(token.ignoredPaths, ignored.path, method)) return true
+        // The token filter validates a refresh token and accepts it on this path alone, so the
+        // route already holds a credential of its own.
+        if (token.refreshTokenPath == ignored.path) return true
+        return token.protectedPaths.isNotEmpty() && !isIgnored(token.protectedPaths, ignored.path, method)
     }
 
     override suspend fun filter(exchange: ServerWebExchange, chain: CoWebFilterChain) {

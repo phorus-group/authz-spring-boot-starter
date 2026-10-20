@@ -18,6 +18,7 @@ import group.phorus.authz.filters.RouteAuthorizationFilter
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
@@ -174,6 +175,57 @@ class AuthzAutoConfigurationTest {
             "group.phorus.authz.gates[0].requires-scope[0]=read write",
         ).run { context ->
             assertTrue(context.startupFailure!!.stackTraceToString().contains("holds a space"))
+        }
+    }
+
+    @Test
+    fun `refuses to start where an ignored route still demands a token under the deny policy`() {
+        runner.withPropertyValues(
+            "group.phorus.authz.default-policy=deny",
+            "group.phorus.authz.ignored-paths[0].path=/health",
+        ).run { context ->
+            assertTrue(context.startupFailure!!.stackTraceToString().contains("\"/health\""))
+        }
+    }
+
+    @Test
+    fun `starts where both filters ignore the route`() {
+        runner.withPropertyValues(
+            "group.phorus.authz.default-policy=deny",
+            "group.phorus.authz.ignored-paths[0].path=/health",
+            "group.phorus.security.filters.token.ignored-paths[0].path=/health",
+        ).run { context ->
+            assertNull(context.startupFailure)
+            assertEquals(1, context.getBeansOfType(RouteAuthorizationFilter::class.java).size)
+        }
+    }
+
+    @Test
+    fun `starts where the route is the one the token filter accepts a refresh token on`() {
+        runner.withPropertyValues(
+            "group.phorus.authz.default-policy=deny",
+            "group.phorus.authz.ignored-paths[0].path=/auth/token",
+            "group.phorus.security.filters.token.refresh-token-path=/auth/token",
+        ).run { context ->
+            assertNull(context.startupFailure)
+        }
+    }
+
+    @Test
+    fun `starts where the token filter protects other routes only`() {
+        runner.withPropertyValues(
+            "group.phorus.authz.default-policy=deny",
+            "group.phorus.authz.ignored-paths[0].path=/health",
+            "group.phorus.security.filters.token.protected-paths[0].path=/documents/**",
+        ).run { context ->
+            assertNull(context.startupFailure)
+        }
+    }
+
+    @Test
+    fun `starts on the same pairing under the allow policy`() {
+        runner.withPropertyValues("group.phorus.authz.ignored-paths[0].path=/health").run { context ->
+            assertNull(context.startupFailure)
         }
     }
 

@@ -129,8 +129,9 @@ group:
 ```
 
 A role name is a key and the permissions it grants are the list under it. A check compares a
-required permission against that list as one whole string, so `document:approve` matches the entry
-`document:approve` and nothing else. A list holding `*` grants every permission instead.
+required permission against that list by name, so the entry `document:approve` grants
+`document:approve`. `*` instead grants every permission, and `document:*` grants every action on
+documents.
 
 A role name keeps the spelling written here, so `ADMIN` in the configuration matches `ADMIN` in a
 token. Write a name holding a dot in square brackets, `"[service.admin]"`, so YAML reads the dot as
@@ -292,6 +293,17 @@ group.phorus.authz:
 
 An ignored route reaches its handler before any gate or policy is considered, so it stays open
 under the policy below as well.
+
+Under `default-policy: deny` an entry here has to name a route the token filter also lets through.
+Skipping authorization while still demanding a token leaves a route open to everyone holding any
+valid token, and closed to the caller holding a credential of its own, such as a webhook signature.
+The service refuses to start on that pairing. A route meant for every authenticated caller belongs
+in a gate naming a permission they all hold, which says so where a reader can see it.
+
+The token filter lets a route through when it is switched off, when the route sits in its own
+`ignored-paths`, and when it runs on a `protected-paths` list naming other routes. Its
+`refresh-token-path` passes as well, since the filter accepts a refresh token on that path alone,
+which is a credential belonging to that route.
 
 ### Requiring a gate on every route
 
@@ -533,6 +545,7 @@ reaches it:
 | A method written in lower case | Same reason: the comparison is exact |
 | A scope value containing a space | RFC 6749 separates scope values with spaces, so this is two written as one |
 | Gates configured while the token filter is off | Requests arrive anonymous, so every gated route returns 401 |
+| An `ignored-paths` entry the token filter still demands a token for, under `default-policy: deny` | The route is then open to everyone holding any valid token, and closed to the caller holding a credential of its own |
 
 ## Configuration reference
 
@@ -540,7 +553,7 @@ reaches it:
 |----------|---------|-------------|
 | `group.phorus.authz.enabled` | `true` | Setting it to `false` creates none of the beans below and leaves every request to its handler |
 | `group.phorus.authz.default-policy` | `allow` | What happens to a request outside every gate: `allow` or `deny` |
-| `group.phorus.authz.roles` | empty | The permissions each role grants, keyed by role name. A list holding `*` grants every permission |
+| `group.phorus.authz.roles` | empty | The permissions each role grants, keyed by role name. An entry of `*` grants every permission, and one ending in `:*` grants every action on that type |
 | `group.phorus.authz.gates` | empty | The routes that require something. See below |
 | `group.phorus.authz.ignored-paths` | empty | Routes that skip authorization entirely |
 

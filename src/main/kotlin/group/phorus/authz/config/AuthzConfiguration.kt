@@ -42,9 +42,9 @@ class AuthzConfiguration(
     var defaultPolicy: DefaultPolicy = DefaultPolicy.ALLOW,
 
     /**
-     * The permissions each role grants, keyed by role name. A list holding `*` grants every
-     * permission. Leave empty and supply a `RoleCatalog` bean to read role definitions from a
-     * database instead.
+     * The permissions each role grants, keyed by role name. An entry of `*` grants every
+     * permission, and one ending in `:*` grants every action on the type before the colon. Leave
+     * empty and supply a `RoleCatalog` bean to read role definitions from a database instead.
      */
     var roles: Map<String, List<String>> = emptyMap(),
 

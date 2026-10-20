@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.springframework.http.HttpHeaders
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -69,13 +70,24 @@ class RouteAuthorizationFilterTest {
         gates: List<Gate> = emptyList(),
         defaultPolicy: DefaultPolicy = DefaultPolicy.ALLOW,
         ignoredPaths: List<Path> = emptyList(),
+        // A route the token filter protects reaches authz with a token in hand, so the two lists
+        // agree unless a test is about them disagreeing.
+        tokenIgnoredPaths: List<Path> = ignoredPaths,
+        tokenProtectedPaths: List<Path> = emptyList(),
+        refreshTokenPath: String? = null,
+        tokenFilterEnabled: Boolean = true,
     ) = RouteAuthorizationFilter(
         configuration = AuthzConfiguration(
             defaultPolicy = defaultPolicy,
             gates = gates,
             ignoredPaths = ignoredPaths,
         ),
-        securityConfiguration = SecurityConfiguration().apply { filters.token.enabled = true },
+        securityConfiguration = SecurityConfiguration().apply {
+            filters.token.enabled = tokenFilterEnabled
+            filters.token.ignoredPaths = tokenIgnoredPaths
+            filters.token.protectedPaths = tokenProtectedPaths
+            filters.token.refreshTokenPath = refreshTokenPath
+        },
         principalResolver = PrincipalResolver { principal },
         authorizer = authorizer,
     )
@@ -124,6 +136,86 @@ class RouteAuthorizationFilterTest {
         ).filter(get("/health"), chain).block()
 
         assertTrue(chain.reached)
+    }
+
+    @Test
+    fun `refuses to start where an ignored route still demands a token under the deny policy`() {
+        val error = assertThrows<IllegalArgumentException> {
+            filterFor(
+                principal = null,
+                defaultPolicy = DefaultPolicy.DENY,
+                ignoredPaths = listOf(Path("/health")),
+                tokenIgnoredPaths = emptyList(),
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("/health"), error.message.orEmpty())
+    }
+
+    @Test
+    fun `allows the same pairing under the allow policy, where a route outside every gate is open anyway`() {
+        assertDoesNotThrow {
+            filterFor(
+                principal = null,
+                defaultPolicy = DefaultPolicy.ALLOW,
+                ignoredPaths = listOf(Path("/health")),
+                tokenIgnoredPaths = emptyList(),
+            )
+        }
+    }
+
+    @Test
+    fun `accepts the refresh route, which the token filter authenticates with a credential of its own`() {
+        assertDoesNotThrow {
+            filterFor(
+                principal = null,
+                defaultPolicy = DefaultPolicy.DENY,
+                ignoredPaths = listOf(Path("/auth/token")),
+                tokenIgnoredPaths = emptyList(),
+                refreshTokenPath = "/auth/token",
+            )
+        }
+    }
+
+    @Test
+    fun `accepts an ignored route where the token filter is switched off`() {
+        assertDoesNotThrow {
+            filterFor(
+                principal = null,
+                defaultPolicy = DefaultPolicy.DENY,
+                ignoredPaths = listOf(Path("/health")),
+                tokenIgnoredPaths = emptyList(),
+                tokenFilterEnabled = false,
+            )
+        }
+    }
+
+    @Test
+    fun `accepts an ignored route where the token filter's protected list names other routes`() {
+        assertDoesNotThrow {
+            filterFor(
+                principal = null,
+                defaultPolicy = DefaultPolicy.DENY,
+                ignoredPaths = listOf(Path("/health")),
+                tokenIgnoredPaths = emptyList(),
+                tokenProtectedPaths = listOf(Path("/documents/**")),
+            )
+        }
+    }
+
+    @Test
+    fun `refuses to start where the token filter's protected list covers the ignored route`() {
+        val error = assertThrows<IllegalArgumentException> {
+            filterFor(
+                principal = null,
+                defaultPolicy = DefaultPolicy.DENY,
+                ignoredPaths = listOf(Path("/health")),
+                tokenIgnoredPaths = emptyList(),
+                tokenProtectedPaths = listOf(Path("/health")),
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("/health"), error.message.orEmpty())
     }
 
     @Test
